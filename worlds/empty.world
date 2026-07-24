@@ -1,0 +1,13 @@
+<?xml version="1.0" ?>
+<!-- Bare ground plane, for quick drive/sensor sanity checks. -->
+<sdf version="1.6">
+  <world name="empty">
+    <include><uri>model://sun</uri></include>
+    <include><uri>model://ground_plane</uri></include>
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+  </world>
+</sdf>

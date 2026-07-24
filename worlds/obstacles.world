@@ -1,0 +1,116 @@
+<?xml version="1.0" ?>
+<!--
+  Obstacle course for obstacle-avoidance / goal-reaching RL.
+  A 10 x 10 m walled arena with an assortment of box and cylinder obstacles.
+  The perimeter walls give the lidar something to see everywhere (an empty
+  world produces mostly max-range scans, which trains a weak policy).
+-->
+<sdf version="1.6">
+  <world name="obstacles">
+
+    <include><uri>model://sun</uri></include>
+    <include><uri>model://ground_plane</uri></include>
+
+    <!-- Faster-than-realtime friendly physics -->
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+
+    <!-- ============================ Arena walls ======================= -->
+    <model name="arena_walls">
+      <static>true</static>
+      <!-- North wall -->
+      <link name="wall_n">
+        <pose>0 5 0.25 0 0 0</pose>
+        <collision name="c"><geometry><box><size>10 0.1 0.5</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>10 0.1 0.5</size></box></geometry>
+          <material><ambient>0.6 0.6 0.6 1</ambient><diffuse>0.7 0.7 0.7 1</diffuse></material></visual>
+      </link>
+      <!-- South wall -->
+      <link name="wall_s">
+        <pose>0 -5 0.25 0 0 0</pose>
+        <collision name="c"><geometry><box><size>10 0.1 0.5</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>10 0.1 0.5</size></box></geometry>
+          <material><ambient>0.6 0.6 0.6 1</ambient><diffuse>0.7 0.7 0.7 1</diffuse></material></visual>
+      </link>
+      <!-- East wall -->
+      <link name="wall_e">
+        <pose>5 0 0.25 0 0 0</pose>
+        <collision name="c"><geometry><box><size>0.1 10 0.5</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.1 10 0.5</size></box></geometry>
+          <material><ambient>0.6 0.6 0.6 1</ambient><diffuse>0.7 0.7 0.7 1</diffuse></material></visual>
+      </link>
+      <!-- West wall -->
+      <link name="wall_w">
+        <pose>-5 0 0.25 0 0 0</pose>
+        <collision name="c"><geometry><box><size>0.1 10 0.5</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.1 10 0.5</size></box></geometry>
+          <material><ambient>0.6 0.6 0.6 1</ambient><diffuse>0.7 0.7 0.7 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- ============================ Obstacles ========================= -->
+    <model name="box_1">
+      <static>true</static>
+      <pose>2.0 1.5 0.25 0 0 0</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>0.5 0.5 0.5</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.5 0.5 0.5</size></box></geometry>
+          <material><ambient>0.8 0.3 0.2 1</ambient><diffuse>0.9 0.3 0.2 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <model name="box_2">
+      <static>true</static>
+      <pose>-1.5 2.5 0.3 0 0 0</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>0.6 0.6 0.6</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.6 0.6 0.6</size></box></geometry>
+          <material><ambient>0.8 0.3 0.2 1</ambient><diffuse>0.9 0.3 0.2 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <model name="box_3">
+      <static>true</static>
+      <pose>-2.5 -2.0 0.25 0 0 0</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>0.5 0.5 0.5</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.5 0.5 0.5</size></box></geometry>
+          <material><ambient>0.8 0.3 0.2 1</ambient><diffuse>0.9 0.3 0.2 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <model name="cyl_1">
+      <static>true</static>
+      <pose>1.0 -2.5 0.4 0 0 0</pose>
+      <link name="l">
+        <collision name="c"><geometry><cylinder><radius>0.3</radius><length>0.8</length></cylinder></geometry></collision>
+        <visual name="v"><geometry><cylinder><radius>0.3</radius><length>0.8</length></cylinder></geometry>
+          <material><ambient>0.2 0.4 0.8 1</ambient><diffuse>0.2 0.4 0.9 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <model name="cyl_2">
+      <static>true</static>
+      <pose>3.0 -1.0 0.4 0 0 0</pose>
+      <link name="l">
+        <collision name="c"><geometry><cylinder><radius>0.25</radius><length>0.8</length></cylinder></geometry></collision>
+        <visual name="v"><geometry><cylinder><radius>0.25</radius><length>0.8</length></cylinder></geometry>
+          <material><ambient>0.2 0.4 0.8 1</ambient><diffuse>0.2 0.4 0.9 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <model name="cyl_3">
+      <static>true</static>
+      <pose>-3.5 0.5 0.4 0 0 0</pose>
+      <link name="l">
+        <collision name="c"><geometry><cylinder><radius>0.3</radius><length>0.8</length></cylinder></geometry></collision>
+        <visual name="v"><geometry><cylinder><radius>0.3</radius><length>0.8</length></cylinder></geometry>
+          <material><ambient>0.2 0.4 0.8 1</ambient><diffuse>0.2 0.4 0.9 1</diffuse></material></visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

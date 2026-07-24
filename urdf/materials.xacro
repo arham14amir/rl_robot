@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- RViz visual materials -->
+  <material name="blue">  <color rgba="0.2 0.4 0.9 1.0"/></material>
+  <material name="black"> <color rgba="0.05 0.05 0.05 1.0"/></material>
+  <material name="grey">  <color rgba="0.4 0.4 0.4 1.0"/></material>
+  <material name="red">   <color rgba="0.9 0.1 0.1 1.0"/></material>
+  <material name="white"> <color rgba="1.0 1.0 1.0 1.0"/></material>
+
+  <!-- Gazebo visual colors (Gazebo ignores <material> from URDF) -->
+  <gazebo reference="base_link">
+    <material>Gazebo/Blue</material>
+  </gazebo>
+  <gazebo reference="lidar_mast">
+    <material>Gazebo/Grey</material>
+  </gazebo>
+  <gazebo reference="lidar_link">
+    <material>Gazebo/Red</material>
+  </gazebo>
+
+  <!-- Wheel surfaces for skid steering.
+       A skid-steer robot MUST be able to slip sideways to yaw. fdir1 pins the
+       first friction direction to the wheel's rolling axis (x in the wheel
+       link frame); mu1 is the grip along that rolling direction (high, so it
+       drives), mu2 is the lateral/axle direction (near-zero, so the robot can
+       skid round when turning). High mu2 here locks the robot and it will not
+       turn in place. -->
+  <xacro:macro name="wheel_gazebo" params="ref">
+    <gazebo reference="${ref}">
+      <material>Gazebo/Black</material>
+      <mu1>1.0</mu1>
+      <mu2>0.0</mu2>
+      <fdir1>1 0 0</fdir1>
+      <kp>500000.0</kp>
+      <kd>10.0</kd>
+      <minDepth>0.001</minDepth>
+      <maxVel>1.0</maxVel>
+    </gazebo>
+  </xacro:macro>
+
+  <xacro:wheel_gazebo ref="front_left_wheel"/>
+  <xacro:wheel_gazebo ref="front_right_wheel"/>
+  <xacro:wheel_gazebo ref="back_left_wheel"/>
+  <xacro:wheel_gazebo ref="back_right_wheel"/>
+
+</robot>

@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ==================================================================== -->
+  <!--  Skid-steer drive (Gazebo Classic)                                   -->
+  <!--                                                                      -->
+  <!--  diff_drive with num_wheel_pairs=2 drives all four wheels: the two   -->
+  <!--  left wheels share a velocity, the two right wheels share a velocity.-->
+  <!--                                                                      -->
+  <!--  RL interface exposed by this plugin:                                -->
+  <!--    action  -> /cmd_vel   (geometry_msgs/Twist: linear.x, angular.z)  -->
+  <!--    state   -> /odom      (nav_msgs/Odometry)                         -->
+  <!--    TF      -> odom -> base_footprint                                 -->
+  <!-- ==================================================================== -->
+  <gazebo>
+    <plugin name="skid_steer_drive" filename="libgazebo_ros_diff_drive.so">
+
+      <ros>
+        <namespace>/</namespace>
+      </ros>
+
+      <num_wheel_pairs>2</num_wheel_pairs>
+
+      <!-- pair 1 (front) -->
+      <left_joint>front_left_wheel_joint</left_joint>
+      <right_joint>front_right_wheel_joint</right_joint>
+      <!-- pair 2 (back) -->
+      <left_joint>back_left_wheel_joint</left_joint>
+      <right_joint>back_right_wheel_joint</right_joint>
+
+      <!-- separation = lateral distance between left and right wheels
+           (2 * wheel_yoff = 2 * (0.11 + 0.0225)) ; diameter = 2 * 0.06 -->
+      <wheel_separation>0.265</wheel_separation>
+      <wheel_separation>0.265</wheel_separation>
+      <wheel_diameter>0.12</wheel_diameter>
+      <wheel_diameter>0.12</wheel_diameter>
+
+      <max_wheel_torque>20.0</max_wheel_torque>
+      <max_wheel_acceleration>5.0</max_wheel_acceleration>
+
+      <command_topic>cmd_vel</command_topic>
+
+      <publish_odom>true</publish_odom>
+      <publish_odom_tf>true</publish_odom_tf>
+      <publish_wheel_tf>false</publish_wheel_tf>
+
+      <odometry_topic>odom</odometry_topic>
+      <odometry_frame>odom</odometry_frame>
+      <robot_base_frame>base_footprint</robot_base_frame>
+      <!-- 1 = compute odom from wheel encoders (world source would be cheating for RL) -->
+      <odometry_source>1</odometry_source>
+
+      <update_rate>50.0</update_rate>
+    </plugin>
+  </gazebo>
+
+</robot>
