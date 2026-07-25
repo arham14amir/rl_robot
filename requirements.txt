@@ -1,0 +1,23 @@
+# Python packages the RL layer needs that are NOT available through rosdep.
+#
+#   python3 -m pip install --user -r requirements.txt
+#
+# Install torch from the CPU index to avoid pulling ~2 GB of CUDA wheels:
+#   python3 -m pip install --user torch --index-url https://download.pytorch.org/whl/cpu
+#
+# The policies here are two 256-unit MLPs. A GPU buys you almost nothing -
+# wall-clock time is dominated by Gazebo stepping, not by gradients.
+
+# numpy must stay on 1.x: ROS 2 Humble's rclpy/cv_bridge binaries are built
+# against the 1.x ABI and segfault or warn loudly against numpy 2.
+numpy<2
+
+# torch pulls in setuptools>=77, which needs packaging>=24. Ubuntu 22.04 ships
+# packaging 21.3, and the mismatch breaks ament_cmake_python with
+#   TypeError: canonicalize_version() got an unexpected keyword 'strip_trailing_zero'
+# i.e. `colcon build` fails *after* you install torch. Installing this fixes it.
+packaging>=24
+
+gymnasium>=0.29,<0.30
+stable-baselines3>=2.3,<2.4
+tensorboard>=2.11

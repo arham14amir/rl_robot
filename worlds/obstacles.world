@@ -18,6 +18,21 @@
       <real_time_update_rate>1000</real_time_update_rate>
     </physics>
 
+    <!-- ==================================================================
+         RL episode reset support.
+
+         Provides /set_entity_state and /get_entity_state, which the Gym env
+         uses to teleport the robot to a new random start pose at the top of
+         every episode. gazebo.launch.py loads init/factory/force_system for
+         us but NOT this one, so it has to be declared in the world.
+         ================================================================== -->
+    <plugin name="gazebo_ros_state" filename="libgazebo_ros_state.so">
+      <ros>
+        <namespace>/</namespace>
+      </ros>
+      <update_rate>1.0</update_rate>
+    </plugin>
+
     <!-- ============================ Arena walls ======================= -->
     <model name="arena_walls">
       <static>true</static>

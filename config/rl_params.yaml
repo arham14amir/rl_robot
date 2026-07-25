@@ -1,0 +1,228 @@
+# ============================================================================
+#  rl_robot - reinforcement-learning configuration
+#
+#  Everything the RL layer needs is here. The env code reads this file and
+#  contains no magic numbers, so you can retune the task without touching
+#  Python. Change a number -> rebuild (or run with --config on the source
+#  file) -> retrain.
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+#  ROS interface: what the env talks to. Matches the plugins in urdf/.
+# ---------------------------------------------------------------------------
+ros:
+  cmd_vel_topic: /cmd_vel          # action out   (gazebo_control.xacro)
+  scan_topic: /scan                # observation  (lidar.xacro)
+  odom_topic: /odom                # observation  (gazebo_control.xacro)
+  clock_topic: /clock              # sim time, published by libgazebo_ros_init
+  marker_topic: /goal_marker       # RViz visualisation of the current goal
+
+  # Gazebo Classic services.
+  #   pause/unpause/reset_world come from libgazebo_ros_init.so (loaded by
+  #   gazebo.launch.py automatically).
+  #   set_entity_state comes from libgazebo_ros_state.so, which we load as a
+  #   world plugin inside worlds/*.world.
+  pause_service: /pause_physics
+  unpause_service: /unpause_physics
+  reset_service: /reset_world      # NOT /reset_simulation - that rewinds
+                                   # /clock to 0 and breaks sim-time timing.
+  set_state_service: /set_entity_state
+  entity_name: rl_robot            # -entity passed to spawn_entity.py
+
+# ---------------------------------------------------------------------------
+#  Simulator speed
+#
+#  The worlds ship with real_time_update_rate = 1000 and a 0.001 s step, i.e.
+#  exactly 1x real time. At 5 control Hz that is only ~4.6 RL steps/s, so
+#  300k training steps would take ~18 hours.
+#
+#  Speeding the simulator up is NOT free. Physics keeps running while the
+#  /pause_physics request makes its round trip, so each step overruns by
+#  (round-trip wall time x speed factor) of sim time. Measured on this
+#  machine, 25 steps per rate:
+#
+#      rate      speed    mean dt   std dt     err   RL steps/s
+#      1000       0.9x     0.200s    0.000s   -0.0%      4.6
+#      2000       1.8x     0.200s    0.000s   -0.0%      9.0
+#      3000       2.6x     0.200s    0.000s   +0.0%     13.0
+#      5000       4.0x     0.200s    0.000s   +0.0%     19.9   <- default
+#      0 (max)    6.5x     0.308s    0.130s  +54.1%     21.1
+#
+#  Uncapping buys ~6% more throughput and destroys step determinism; 5000 is
+#  the knee of the curve. Re-measure on your own machine if you change the
+#  control period or the arena.
+#
+#  Below the knee this only changes how fast the sim runs, never what it
+#  simulates: every measurement in the env is taken in SIM time, so a policy
+#  trained at 4x is identical to one trained at 1x.
+#
+#  Applied with Gazebo's own `gz physics -u <rate>` CLI. ROS 2 Humble's
+#  gazebo_ros has no plugin that advertises SetPhysicsProperties, despite the
+#  message type existing - that was a ROS 1 feature only.
+# ---------------------------------------------------------------------------
+simulation:
+  set_physics_on_start: true
+  # 5000 = ~4x real time with exact step timing. 1000 = 1x, for watching a
+  # trained policy (play.py sets this itself). 0 = uncapped, not recommended.
+  max_update_rate: 5000.0
+
+# ---------------------------------------------------------------------------
+#  Action space: 2 continuous values in [-1, 1], rescaled to a Twist.
+#
+#  Why [-1,1]? Every RL algorithm assumes roughly unit-scaled actions; the
+#  policy's Gaussian/tanh output lives there natively. We do the unit
+#  conversion, not the network.
+# ---------------------------------------------------------------------------
+action:
+  max_linear_speed: 0.6            # m/s   -> cmd_vel.linear.x
+  max_angular_speed: 1.5           # rad/s -> cmd_vel.angular.z
+  # If true, a[0] maps to [0, max_linear_speed] (forward only). Skid-steer
+  # robots learn goal-reaching much faster when they cannot reverse, and it
+  # matches a lidar that only "sees" usefully in front while driving.
+  forward_only: true
+
+# ---------------------------------------------------------------------------
+#  Observation space
+#
+#  Layout (all float32, all roughly in [-1, 1] or [0, 1]):
+#     [0 : n_lidar_beams]  down-sampled lidar, normalised by max_range
+#     [n]                  distance to goal / max_goal_distance
+#     [n+1]                sin(heading error to goal)
+#     [n+2]                cos(heading error to goal)
+#     [n+3], [n+4]         previous action (linear, angular)
+#
+#  -> obs_dim = n_lidar_beams + 5
+# ---------------------------------------------------------------------------
+observation:
+  n_lidar_beams: 24                # down-sampled from the 360 raw beams
+  lidar_max_range: 12.0            # must match <range><max> in lidar.xacro
+  lidar_min_range: 0.12            # must match <range><min> in lidar.xacro
+  max_goal_distance: 14.0          # normaliser, ~arena diagonal
+  include_previous_action: true    # gives the policy a sense of its own state
+
+# ---------------------------------------------------------------------------
+#  Episode dynamics
+# ---------------------------------------------------------------------------
+episode:
+  control_period: 0.2              # seconds of SIM time per RL step (5 Hz).
+                                   # Lidar runs at 10 Hz, so every step sees
+                                   # ~2 fresh scans. Do not go below 0.1.
+  max_steps: 500                   # 500 * 0.2 s = 100 s -> then truncated
+  step_timeout: 5.0                # wall-clock guard if Gazebo stalls
+
+  goal_tolerance: 0.35             # m, within this -> success, terminated
+  # Collision test = min(raw scan) < this.
+  # The lidar sits at the chassis CENTRE and the chassis half-length is
+  # 0.175 m, so anything closer than ~0.175 m is already touching the robot.
+  # 0.25 m leaves a 7.5 cm safety margin. Do NOT lower below ~0.20.
+  collision_distance: 0.25
+
+  pause_between_steps: true        # pause physics while the policy thinks ->
+                                   # deterministic, reproducible steps
+
+# ---------------------------------------------------------------------------
+#  Reward function -- this is the actual "task definition".
+#
+#  r = progress + heading + proximity + step + spin  (+ terminal bonus)
+# ---------------------------------------------------------------------------
+reward:
+  goal_reward: 200.0               # one-off, on reaching the goal
+  collision_penalty: -200.0        # one-off, on collision
+  timeout_penalty: 0.0             # on truncation (0 = neutral)
+
+  # Dense shaping. progress_weight * (distance_last_step - distance_now).
+  # Max per step = 0.6 m/s * 0.2 s * 30 = 3.6, comfortably below the terminal
+  # rewards so the agent cannot farm shaping instead of finishing.
+  progress_weight: 30.0
+
+  heading_weight: 0.5              # penalty = -w * |angle to goal| (rad)
+  # Penalty ramps in linearly once the nearest obstacle is closer than
+  # safe_distance, reaching -obstacle_weight at the collision threshold.
+  obstacle_weight: 2.0
+  safe_distance: 0.7
+
+  step_penalty: -0.1               # small per-step cost -> prefer short paths
+  angular_penalty: 0.05            # -w * |angular action| -> discourage spin
+
+# ---------------------------------------------------------------------------
+#  Episode reset: where the robot and the goal are placed.
+#
+#  Obstacles are listed here (mirroring worlds/obstacles.world) so the sampler
+#  never spawns the robot or a goal inside a box. If you edit the world, edit
+#  this list too.
+# ---------------------------------------------------------------------------
+reset:
+  randomize_start: true
+  randomize_goal: true
+
+  arena_min_x: -4.4                # walls sit at +/-5.0; keep 0.6 m clear
+  arena_max_x: 4.4
+  arena_min_y: -4.4
+  arena_max_y: 4.4
+  spawn_z: 0.1
+
+  obstacle_clearance: 0.55         # min distance from any obstacle surface
+  min_start_goal_distance: 1.5     # don't spawn on top of the goal
+  max_sampling_attempts: 200
+
+  # Fixed poses used when randomize_* is false. [x, y, yaw]
+  fixed_start: [0.0, 0.0, 0.0]
+  fixed_goal: [3.0, 3.0]
+
+  # name is documentation only; radius is the *keep-out* radius.
+  obstacles:
+    - {name: box_1, x: 2.0,  y: 1.5,  radius: 0.45}
+    - {name: box_2, x: -1.5, y: 2.5,  radius: 0.50}
+    - {name: box_3, x: -2.5, y: -2.0, radius: 0.45}
+    - {name: cyl_1, x: 1.0,  y: -2.5, radius: 0.30}
+    - {name: cyl_2, x: 3.0,  y: -1.0, radius: 0.25}
+    - {name: cyl_3, x: -3.5, y: 0.5,  radius: 0.30}
+
+# ---------------------------------------------------------------------------
+#  Training hyper-parameters (consumed by scripts/train.py)
+# ---------------------------------------------------------------------------
+training:
+  algo: SAC                        # SAC | PPO | TD3
+  total_timesteps: 300000
+  seed: 0
+  log_dir: ~/rl_robot_runs         # models + tensorboard land here
+  save_freq: 10000                 # checkpoint every N steps
+
+  # SAC: off-policy, replays old experience. Best choice here because every
+  # environment step costs real simulator time - sample efficiency matters
+  # far more than wall-clock-per-gradient.
+  sac:
+    learning_rate: 0.0003
+    buffer_size: 200000
+    batch_size: 256
+    tau: 0.005
+    gamma: 0.99
+    learning_starts: 1000
+    train_freq: 1
+    gradient_steps: 1
+    net_arch: [256, 256]
+
+  # PPO: on-policy, needs ~10x more environment steps. Included for
+  # comparison / because it is more forgiving of a badly-shaped reward.
+  ppo:
+    learning_rate: 0.0003
+    n_steps: 2048
+    batch_size: 64
+    n_epochs: 10
+    gamma: 0.99
+    gae_lambda: 0.95
+    clip_range: 0.2
+    ent_coef: 0.0
+    net_arch: [256, 256]
+
+  td3:
+    learning_rate: 0.001
+    buffer_size: 200000
+    batch_size: 256
+    tau: 0.005
+    gamma: 0.99
+    learning_starts: 1000
+    train_freq: 1
+    gradient_steps: 1
+    action_noise_sigma: 0.1
+    net_arch: [256, 256]

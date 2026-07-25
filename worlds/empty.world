@@ -9,5 +9,14 @@
       <real_time_factor>1.0</real_time_factor>
       <real_time_update_rate>1000</real_time_update_rate>
     </physics>
+
+    <!-- /set_entity_state + /get_entity_state, used by the RL env to
+         teleport the robot on episode reset. -->
+    <plugin name="gazebo_ros_state" filename="libgazebo_ros_state.so">
+      <ros>
+        <namespace>/</namespace>
+      </ros>
+      <update_rate>1.0</update_rate>
+    </plugin>
   </world>
 </sdf>

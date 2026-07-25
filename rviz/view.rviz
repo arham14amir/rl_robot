@@ -37,6 +37,13 @@ Visualization Manager:
       Topic:
         Value: /odom
       Keep: 1
+    # Green disc showing the current RL goal (published by the Gym env).
+    - Class: rviz_default_plugins/Marker
+      Name: RL Goal
+      Enabled: true
+      Topic:
+        Value: /goal_marker
+        Reliability Policy: Reliable
   Tools:
     - Class: rviz_default_plugins/MoveCamera
     - Class: rviz_default_plugins/Select
