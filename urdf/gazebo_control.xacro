@@ -54,4 +54,25 @@
     </plugin>
   </gazebo>
 
+  <!-- ==================================================================== -->
+  <!--  Joint state publisher                                               -->
+  <!--                                                                      -->
+  <!--  Publishes the wheel joint angles on /joint_states so that           -->
+  <!--  robot_state_publisher can compute and broadcast the                 -->
+  <!--  base_link -> *_wheel transforms. Without this the (continuous)      -->
+  <!--  wheel joints never appear in the TF tree.                           -->
+  <!-- ==================================================================== -->
+  <gazebo>
+    <plugin name="joint_state_publisher" filename="libgazebo_ros_joint_state_publisher.so">
+      <ros>
+        <namespace>/</namespace>
+      </ros>
+      <update_rate>50</update_rate>
+      <joint_name>front_left_wheel_joint</joint_name>
+      <joint_name>front_right_wheel_joint</joint_name>
+      <joint_name>back_left_wheel_joint</joint_name>
+      <joint_name>back_right_wheel_joint</joint_name>
+    </plugin>
+  </gazebo>
+
 </robot>
