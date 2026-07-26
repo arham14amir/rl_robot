@@ -30,7 +30,11 @@ def main(argv=None):
     parser.add_argument("--speed", type=float, default=1000.0,
                         help="physics update rate: 1000 = 1x real time (default, "
                              "so you can actually watch it), 0 = uncapped")
-    args = parser.parse_args(argv if argv is not None else sys.argv[1:])
+    # Strip the "--ros-args ..." that ros2 launch appends; see train.py.
+    if argv is None:
+        from rclpy.utilities import remove_ros_args
+        argv = remove_ros_args(sys.argv)[1:]
+    args = parser.parse_args(argv)
 
     cfg = load_config(args.config)
     # Training uncaps physics; for watching we want real time back.

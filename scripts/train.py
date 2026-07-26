@@ -94,11 +94,24 @@ def main(argv=None):
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--run-name", default=None, help="subfolder under log_dir")
     parser.add_argument("--resume", default=None, help="path to a .zip to continue from")
+    parser.add_argument("--speed", default="",
+                        help="physics update rate, overriding rl_params.yaml: "
+                             "1000 = 1x real time (watchable), 5000 = ~4x, 0 = uncapped")
     parser.add_argument("--check-env", action="store_true",
                         help="run SB3's API conformance check and exit")
-    args = parser.parse_args(argv if argv is not None else sys.argv[1:])
+    # `ros2 launch` appends "--ros-args -r __node:=..." to every Node it
+    # starts. argparse would reject those, so strip them first - this is what
+    # makes the script work both under `ros2 run` and inside a launch file.
+    if argv is None:
+        from rclpy.utilities import remove_ros_args
+        argv = remove_ros_args(sys.argv)[1:]
+    args = parser.parse_args(argv)
 
     cfg = load_config(args.config)
+    # Empty string rather than None: launch files always pass a value.
+    if args.speed != "" and args.speed is not None:
+        cfg.setdefault("simulation", {})["set_physics_on_start"] = True
+        cfg["simulation"]["max_update_rate"] = float(args.speed)
     tcfg = cfg["training"]
     algo = (args.algo or tcfg["algo"]).upper()
     timesteps = args.timesteps or int(tcfg["total_timesteps"])

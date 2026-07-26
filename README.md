@@ -97,15 +97,33 @@ Re-measure if you change `control_period` or the arena.
 
 ### Train
 
+Simplest — one command, Gazebo and RViz open automatically so you can watch:
+
 ```bash
-# terminal 1 — simulator, headless and as fast as the CPU allows
+ros2 launch rl_robot train.launch.py
+ros2 launch rl_robot train.launch.py speed:=1000            # 1x real time
+ros2 launch rl_robot train.launch.py gui:=false rviz:=false # fastest
+```
+
+Or split across two terminals, which is nicer while debugging — separate logs,
+and you can restart the learner without restarting Gazebo:
+
+```bash
+# terminal 1
 ros2 launch rl_robot sim.launch.py gui:=false rviz:=false
 
-# terminal 2 — the learner
+# terminal 2
 ros2 run rl_robot train.py --timesteps 300000
 ```
 
-Or both at once: `ros2 launch rl_robot train.launch.py algo:=SAC timesteps:=300000`
+Already have a sim running? Attach viewers to it from another terminal without
+restarting anything — `gzclient` for Gazebo, `rviz2 -d $(ros2 pkg prefix
+rl_robot)/share/rl_robot/rviz/view.rviz` for RViz.
+
+Two things look wrong in the GUI but are not: the motion **stutters** (the env
+pauses physics between steps on purpose — that is what keeps steps exactly
+0.200 s), and everything runs **~4–5× too fast**. Change the speed live with
+`gz physics -u 1000`.
 
 Models, checkpoints and tensorboard logs go to `~/rl_robot_runs/<run_name>/`.
 Watch progress with `tensorboard --logdir ~/rl_robot_runs`; the number to
